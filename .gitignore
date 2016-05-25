@@ -1,5 +1,5 @@
 *.class
-.DS_STORE
+.DS_Store
 bin/
 .classpath
 .project
