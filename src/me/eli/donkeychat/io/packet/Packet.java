@@ -8,11 +8,9 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.math.BigInteger;
 
-import me.eli.donkeychat.io.BigIntegerList;
-
 public interface Packet extends Serializable {
 	
-	public default BigIntegerList encrypt(BigInteger sharedKey) {
+	public default byte[] encrypt(BigInteger sharedKey) {
 		ByteArrayOutputStream bos = null;
 		ObjectOutputStream out = null;
 		try {
@@ -23,7 +21,18 @@ public interface Packet extends Serializable {
 			BigInteger[] bigData = new BigInteger[data.length];
 			for(int i = 0; i < data.length; i++)
 				bigData[i] = sharedKey.multiply(new BigInteger("" + data[i]));
-			return new BigIntegerList(bigData);
+			try {
+				bos.close();
+				bos = null;
+			} catch(IOException e) {}
+			try {
+				out.close();
+				out = null;
+			} catch(IOException e) {}
+			bos = new ByteArrayOutputStream();
+			out = new ObjectOutputStream(bos);
+			out.writeObject(bigData);
+			return bos.toByteArray();
 		} catch(IOException e) {
 			e.printStackTrace();
 			return null;
@@ -39,13 +48,29 @@ public interface Packet extends Serializable {
 		}
 	}
 	
-	public static Packet decrypt(BigIntegerList bigData, BigInteger sharedKey) {
+	public static Packet decrypt(byte[] encryptedData, BigInteger sharedKey) {
 		ByteArrayInputStream bin = null;
 		ObjectInputStream in = null;
 		try {
-			byte[] data = new byte[bigData.get().size()];
+			bin = new ByteArrayInputStream(encryptedData);
+			in = new ObjectInputStream(bin);
+			BigInteger[] bigData = null;
+			try {
+				bigData = (BigInteger[]) in.readObject();
+			} catch(ClassCastException e) {
+				return null;
+			}
+			try {
+				bin.close();
+				bin = null;
+			} catch(IOException e) {}
+			try {
+				in.close();
+				in = null;
+			} catch(IOException e) {}
+			byte[] data = new byte[bigData.length];
 			for(int i = 0; i < data.length; i++)
-				data[i] = bigData.get().get(i).divide(sharedKey).byteValueExact();
+				data[i] = bigData[i].divide(sharedKey).byteValueExact();
 			bin = new ByteArrayInputStream(data);
 			in = new ObjectInputStream(bin);
 			return (Packet) in.readObject();

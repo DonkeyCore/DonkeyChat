@@ -29,17 +29,23 @@ public class IOHandler implements Closeable {
 	}
 	
 	public void write(Packet packet) throws IOException {
-		if (packet instanceof PublicKey)
-			write((Object) packet);
-		else
-			write(packet.encrypt(sharedKey));
+		if (!(packet instanceof PublicKey)) {
+			try {
+				write(packet.encrypt(sharedKey));
+				return;
+			} catch(Exception e) {}
+		}
+		write((Object) packet);
 	}
 	
 	public Object read() throws IOException {
 		try {
 			Object o = in.readObject();
-			if (o instanceof BigIntegerList)
-				return Packet.decrypt((BigIntegerList) o, sharedKey);
+			if (o instanceof byte[]) {
+				try {
+					return Packet.decrypt((byte[]) o, sharedKey);
+				} catch(Exception e) {}
+			}
 			return o;
 		} catch(ClassNotFoundException e) {
 			e.printStackTrace();
